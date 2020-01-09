@@ -1063,24 +1063,19 @@ Private Sub Form_Load()
     If Not ResolucionCambiada Then
         ' Handles Form movement (drag and drop).
         Set clsFormulario = New clsFormMovementManager
-        clsFormulario.Initialize Me, 120
+        Call clsFormulario.Initialize(Me, 120)
     End If
-    
-    'InvEqu.Picture = LoadPicture(Game.path(Skins) & SkinSeleccionado & "\CentroInventario.jpg")
-    
+        
     Call LoadButtons
     
     With Me
-        '.Picture = LoadPicture(Game.path(Skins) & SkinSeleccionado & "\VentanaPrincipal.JPG")
-        '.Left = 0
-        '.Top = 0
-        '.Width = 12000
-        '.Height = 9000
+        'Lo hardcodeo porque de lo contrario se ve un borde blanco.
+        .Height = 11550
         .Label6 = JsonLanguage.item("NIVEL").item("TEXTO") & ": "
     End With
 
     Call LoadTextsForm
-    '    Call LoadAOCustomControlsPictures(Me)
+    'Call LoadAOCustomControlsPictures(Me)
     'Todo: Poner la carga de botones como en el frmCambiaMotd.frm para mantener coherencia con el resto de la aplicacion
     'y poder borrar los frx de este archivo
         
