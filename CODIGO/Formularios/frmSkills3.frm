@@ -924,7 +924,15 @@ Private Sub Form_Load()
     
     Call ValidarSkills
     
-    Me.Picture = LoadPicture(Game.path(Interfaces) & "VentanaSkills.jpg")
+    ' TODO: Traducir los textos de las imagenes via labels en visual basic, para que en el futuro si se quiere se pueda traducir a mas idiomas
+    ' No ando con mas ganas/tiempo para hacer eso asi que se traducen las imagenes asi tenemos el juego en ingles.
+    ' Tambien usar los controles uAObuttons para los botones, usar de ejemplo frmCambiaMotd.frm
+    If Language = "spanish" Then
+      Me.Picture = LoadPicture(Game.path(Interfaces) & "VentanaSkills_spanish.jpg")
+    Else
+      Me.Picture = LoadPicture(Game.path(Interfaces) & "VentanaSkills_english.jpg")
+    End If
+
     Call LoadButtons
     
     Call LoadHelp
@@ -1614,7 +1622,7 @@ Private Sub ValidarSkills()
             bPuedeMagia = False
             bPuedeMeditar = False
         
-        Case eClass.Pirat
+        Case eClass.Pirate
             bPuedeMagia = False
             bPuedeMeditar = False
             bPuedeEscudo = False

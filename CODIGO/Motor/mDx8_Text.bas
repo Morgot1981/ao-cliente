@@ -115,17 +115,21 @@ Private Sub Engine_Render_Text(ByRef Batch As clsBatch, _
     Dim Count As Integer
     Dim ascii() As Byte
     Dim i As Long
-    Dim J As Long
+    Dim j As Long
     Dim yOffset As Single
-    Dim TempColor As Long
-    Dim ResetColor As Byte
-    
+    Dim Escala As Single: Escala = 1
     'Check if we have the device
     If DirectDevice.TestCooperativeLevel <> D3D_OK Then Exit Sub
 
     'Check for valid text to render
     If LenB(Text) = 0 Then Exit Sub
-    
+    If Font = 2 Then
+        If (Engine_GetTextWidth(cfonts(Font), Text)) > frmMain.MainViewPic.ScaleWidth Then ' Si el tamaño del texto es mayor al ancho
+                                                                                           ' de la ventana,te lo va a escalar para que entre
+            Escala = frmMain.MainViewPic.ScaleWidth / (Engine_GetTextWidth(cfonts(Font), Text))
+        
+        End If
+    End If
      'WyroX: Agregado para evitar dibujar emojis en los nombres de los personajes
     If ParseEmoticons Then
         'Analizar mensaje, palabra por palabra... GSZAO
@@ -163,7 +167,7 @@ Private Sub Engine_Render_Text(ByRef Batch As clsBatch, _
     Call Batch.SetTexture(UseFont.Texture)
     
     If Center Then
-        X = X - Engine_GetTextWidth(cfonts(Font), Text) * 0.5
+        X = X - CInt((Engine_GetTextWidth(cfonts(Font), Text) * Escala) * 0.5)
     End If
     
     'Loop through each line if there are line breaks (vbCrLf)
@@ -176,28 +180,28 @@ Private Sub Engine_Render_Text(ByRef Batch As clsBatch, _
             ascii() = StrConv(tempstr(i), vbFromUnicode)
         
             'Loop through the characters
-            For J = 1 To Len(tempstr(i))
+            For j = 1 To Len(tempstr(i))
 
-                Call CopyMemory(TempVA, UseFont.HeaderInfo.CharVA(ascii(J - 1)), 24) 'this number represents the size of "CharVA" struct
+                Call CopyMemory(TempVA, UseFont.HeaderInfo.CharVA(ascii(j - 1)), 24) 'this number represents the size of "CharVA" struct
                 
                 TempVA.X = X + Count
                 TempVA.Y = Y + yOffset
                 
                 'Set the colors
-                If Es_Emoticon(ascii(J - 1)) Then ' GSZAO los colores no afectan a los emoticones!
+                If Es_Emoticon(ascii(j - 1)) Then ' GSZAO los colores no afectan a los emoticones!
                     
-                    If (ascii(J - 1) <> 157) Then
+                    If (ascii(j - 1) <> 157) Then
                         Count = Count + 5   ' Los emoticones tienen tamano propio (despues hay que cargarlos "correctamente" para evitar hacer esto)
                     End If
                     
                 End If
             
-                Call Batch.Draw(TempVA.X, TempVA.Y, TempVA.W, TempVA.H, Color, TempVA.Tx1, TempVA.Ty1, TempVA.Tx2, TempVA.Ty2)
+                Call Batch.Draw(TempVA.X, TempVA.Y, TempVA.W * Escala, TempVA.H * Escala, Color, TempVA.Tx1, TempVA.Ty1, TempVA.Tx2, TempVA.Ty2)
 
                 'Shift over the the position to render the next character
-                Count = Count + UseFont.HeaderInfo.CharWidth(ascii(J - 1))
+                Count = Count + (UseFont.HeaderInfo.CharWidth(ascii(j - 1)) * Escala)
                 
-            Next J
+            Next j
             
         End If
     Next i
@@ -207,27 +211,27 @@ End Sub
 Public Function ARGBtoD3DCOLORVALUE(ByVal ARGB As Long, ByRef Color As D3DCOLORVALUE)
 Dim dest(3) As Byte
 CopyMemory dest(0), ARGB, 4
-Color.A = dest(3)
+Color.a = dest(3)
 Color.r = dest(2)
 Color.g = dest(1)
-Color.B = dest(0)
+Color.b = dest(0)
 End Function
 
-Public Function ARGB(ByVal r As Long, ByVal g As Long, ByVal B As Long, ByVal A As Long) As Long
+Public Function ARGB(ByVal r As Long, ByVal g As Long, ByVal b As Long, ByVal a As Long) As Long
         
     Dim c As Long
         
-    If A > 127 Then
-        A = A - 128
-        c = A * 2 ^ 24 Or &H80000000
+    If a > 127 Then
+        a = a - 128
+        c = a * 2 ^ 24 Or &H80000000
         c = c Or r * 2 ^ 16
         c = c Or g * 2 ^ 8
-        c = c Or B
+        c = c Or b
     Else
-        c = A * 2 ^ 24
+        c = a * 2 ^ 24
         c = c Or r * 2 ^ 16
         c = c Or g * 2 ^ 8
-        c = c Or B
+        c = c Or b
     End If
     
     ARGB = c
@@ -258,12 +262,13 @@ Dim Len_text As Long
 End Function
 
 Sub Engine_Init_FontTextures()
-On Error GoTo eDebug:
-'*****************************************************************
-'Init the custom font textures
-'More info: http://www.vbgore.com/GameClient.TileEngine.Engine_Init_FontTextures
-'*****************************************************************
-    Dim i As Long
+    '*****************************************************************
+    'Init the custom font textures
+    'More info: http://www.vbgore.com/GameClient.TileEngine.Engine_Init_FontTextures
+    '*****************************************************************
+    On Error GoTo eDebug:
+    
+    Dim i       As Long
     Dim TexInfo As D3DXIMAGE_INFO_A
 
     'Check if we have the device
@@ -271,19 +276,36 @@ On Error GoTo eDebug:
 
     '*** Default font ***
     For i = 1 To UBound(cfonts)
-    'Set the texture
-    Set cfonts(i).Texture = DirectD3D8.CreateTextureFromFileEx(DirectDevice, Game.path(Graficos) & "font" & i & ".bmp", D3DX_DEFAULT, D3DX_DEFAULT, 0, 0, D3DFMT_UNKNOWN, D3DPOOL_MANAGED, D3DX_FILTER_POINT, D3DX_FILTER_POINT, _
-            &HFF000000, ByVal 0, ByVal 0)
-    'Store the size of the texture
-    cfonts(i).TextureSize.X = TexInfo.Width
-    cfonts(i).TextureSize.Y = TexInfo.Height
+        
+        'Set the texture
+        Set cfonts(i).Texture = DirectD3D8.CreateTextureFromFileEx(DirectDevice, _
+                                                                   Game.path(Fonts) & "font" & i & ".bmp", _
+                                                                   D3DX_DEFAULT, _
+                                                                   D3DX_DEFAULT, _
+                                                                   0, _
+                                                                   0, _
+                                                                   D3DFMT_UNKNOWN, _
+                                                                   D3DPOOL_MANAGED, _
+                                                                   D3DX_FILTER_POINT, _
+                                                                   D3DX_FILTER_POINT, _
+                                                                   &HFF000000, _
+                                                                   ByVal 0, _
+                                                                   ByVal 0)
+        
+        'Store the size of the texture
+        cfonts(i).TextureSize.X = TexInfo.Width
+        cfonts(i).TextureSize.Y = TexInfo.Height
     Next
+    
     Exit Sub
+
 eDebug:
+
     If Err.number = "-2005529767" Then
         MsgBox "Error en la textura de fuente utilizada " & Game.path(Graficos) & "Font.png.", vbCritical
         End
     End If
+    
     End
 
 End Sub
@@ -304,8 +326,9 @@ Sub Engine_Init_FontSettings()
     'Load the header information
     FileNum = FreeFile
     For i = 1 To UBound(cfonts)
-        Open Game.path(Extras) & "Font" & i & ".dat" For Binary As #FileNum
-        Get #FileNum, , cfonts(i).HeaderInfo
+        
+        Open Game.path(Fonts) & "\Font" & i & ".dat" For Binary As #FileNum
+            Get #FileNum, , cfonts(i).HeaderInfo
         Close #FileNum
         
         'Calculate some common values
@@ -342,7 +365,8 @@ Public Sub DrawText(ByVal X As Integer, _
                     ByVal Y As Integer, _
                     ByVal Text As String, _
                     ByVal Color As Long, _
-                    Optional Center As Boolean = False, Optional Font As Integer = 1)
+                    Optional Center As Boolean = False, _
+                    Optional Font As Integer = 1)
 
     Dim aux(3) As Long
 

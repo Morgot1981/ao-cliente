@@ -3,6 +3,108 @@ Option Explicit
 
 Private FileManager As clsIniManager
 
+
+''
+' Loads grh data using the new file format.
+'
+
+Public Sub LoadGrhData()
+On Error GoTo ErrorHandler:
+
+    Dim Grh As Long
+    Dim Frame As Long
+    Dim grhCount As Long
+    Dim handle As Integer
+    Dim fileVersion As Long
+    
+    'Open files
+    handle = FreeFile()
+    Open IniPath & "Graficos.ind" For Binary Access Read As handle
+    
+        Get handle, , fileVersion
+        
+        Get handle, , grhCount
+        
+        ReDim GrhData(0 To grhCount) As GrhData
+        
+        While Not EOF(handle)
+            Get handle, , Grh
+            
+            With GrhData(Grh)
+            
+                '.active = True
+                Get handle, , .NumFrames
+                If .NumFrames <= 0 Then GoTo ErrorHandler
+                
+                ReDim .Frames(1 To .NumFrames)
+                
+                If .NumFrames > 1 Then
+                
+                    For Frame = 1 To .NumFrames
+                        Get handle, , .Frames(Frame)
+                        If .Frames(Frame) <= 0 Or .Frames(Frame) > grhCount Then GoTo ErrorHandler
+                    Next Frame
+                    
+                    Get handle, , .speed
+                    If .speed <= 0 Then GoTo ErrorHandler
+                    
+                    .pixelHeight = GrhData(.Frames(1)).pixelHeight
+                    If .pixelHeight <= 0 Then GoTo ErrorHandler
+                    
+                    .pixelWidth = GrhData(.Frames(1)).pixelWidth
+                    If .pixelWidth <= 0 Then GoTo ErrorHandler
+                    
+                    .TileWidth = GrhData(.Frames(1)).TileWidth
+                    If .TileWidth <= 0 Then GoTo ErrorHandler
+                    
+                    .TileHeight = GrhData(.Frames(1)).TileHeight
+                    If .TileHeight <= 0 Then GoTo ErrorHandler
+                    
+                Else
+                    
+                    Get handle, , .FileNum
+                    If .FileNum <= 0 Then GoTo ErrorHandler
+                    
+                    Get handle, , GrhData(Grh).sX
+                    If .sX < 0 Then GoTo ErrorHandler
+                    
+                    Get handle, , .sY
+                    If .sY < 0 Then GoTo ErrorHandler
+                    
+                    Get handle, , .pixelWidth
+                    If .pixelWidth <= 0 Then GoTo ErrorHandler
+                    
+                    Get handle, , .pixelHeight
+                    If .pixelHeight <= 0 Then GoTo ErrorHandler
+                    
+                    .TileWidth = .pixelWidth / TilePixelHeight
+                    .TileHeight = .pixelHeight / TilePixelWidth
+                    
+                    .Frames(1) = Grh
+                    
+                End If
+                
+            End With
+            
+        Wend
+    
+    Close handle
+    
+Exit Sub
+
+ErrorHandler:
+    
+    If Err.number <> 0 Then
+        
+        If Err.number = 53 Then
+            Call MsgBox("El archivo Graficos.ind no existe. Por favor, reinstale el juego.", , "Argentum Online Libre")
+            Call CloseClient
+        End If
+        
+    End If
+    
+End Sub
+
 Public Sub CargarCabezas()
 On Error GoTo errhandler:
 
@@ -42,7 +144,7 @@ errhandler:
     If Err.number <> 0 Then
         
         If Err.number = 53 Then
-            Call MsgBox("El archivo Cabezas.ind no existe. Por favor, reinstale el juego.", , "Argentum Online")
+            Call MsgBox("El archivo Cabezas.ind no existe. Por favor, reinstale el juego.", , "Argentum Online Libre")
             Call CloseClient
         End If
         
@@ -90,7 +192,7 @@ errhandler:
     If Err.number <> 0 Then
         
         If Err.number = 53 Then
-            Call MsgBox("El archivo Cascos.ind no existe. Por favor, reinstale el juego.", , "Argentum Online")
+            Call MsgBox("El archivo Cascos.ind no existe. Por favor, reinstale el juego.", , "Argentum Online Libre")
             Call CloseClient
         End If
         
@@ -140,7 +242,7 @@ errhandler:
     If Err.number <> 0 Then
         
         If Err.number = 53 Then
-            Call MsgBox("El archivo Personajes.ind no existe. Por favor, reinstale el juego.", , "Argentum Online")
+            Call MsgBox("El archivo Personajes.ind no existe. Por favor, reinstale el juego.", , "Argentum Online Libre")
             Call CloseClient
         End If
         
@@ -151,35 +253,30 @@ End Sub
 Sub CargarFxs()
 On Error GoTo errhandler:
 
-    Dim N As Integer
     Dim i As Long
-    Dim NumFxs As Integer
     
-    N = FreeFile()
-    Open Game.path(INIT) & "Fxs.ind" For Binary Access Read As #N
-    
-    'cabecera
-    Get #N, , MiCabecera
-    
-    'num de cabezas
-    Get #N, , NumFxs
+    Set FileManager = New clsIniManager
+    Call FileManager.Initialize(Game.path(INIT) & "Fxs.ini")
     
     'Resize array
-    ReDim FxData(0 To NumFxs) As tIndiceFx
+    ReDim FxData(0 To FileManager.GetValue("INIT", "NumFxs")) As tIndiceFx
     
-    For i = 1 To NumFxs
-        Get #N, , FxData(i)
-        'MsgBox FxData(i).Animacion & FxData(i).OffsetX
-    Next i
+    For i = 1 To UBound(FxData())
+        
+        With FxData(i)
+            .Animacion = FileManager.GetValue("FX" & CStr(i), "Animacion")
+            .OffsetX = FileManager.GetValue("FX" & CStr(i), "OffsetX")
+            .OffsetY = FileManager.GetValue("FX" & CStr(i), "OffsetY")
+        End With
     
-    Close #N
-
+    Next
+        
 errhandler:
     
     If Err.number <> 0 Then
         
         If Err.number = 53 Then
-            Call MsgBox("El archivo Fxs.ind no existe. Por favor, reinstale el juego.", , "Argentum Online")
+            Call MsgBox("El archivo Fxs.ini no existe. Por favor, reinstale el juego.", , "Argentum Online Libre")
             Call CloseClient
         End If
         
@@ -187,42 +284,26 @@ errhandler:
 
 End Sub
 
-Sub CargarTips()
+Public Sub CargarTips()
+'************************************************************************************.
+' Carga el JSON con los tips del juego en un objeto para su uso a lo largo del proyecto
+'************************************************************************************
 On Error GoTo errhandler:
+    Dim TipFile As String
 
-    Dim N As Integer
-    Dim i As Long
-    Dim NumTips As Integer
-    
-    N = FreeFile
-    Open Game.path(INIT) & "Tips.ayu" For Binary Access Read As #N
-    
-    'cabecera
-    Get #N, , MiCabecera
-    
-    'num de cabezas
-    Get #N, , NumTips
-    
-    'Resize array
-    ReDim Tips(1 To NumTips) As String * 255
-    
-    For i = 1 To NumTips
-        Get #N, , Tips(i)
-    Next i
-    
-    Close #N
-    
+    TipFile = FileToString(Game.path(INIT) & "tips_" & Language & ".json")
+    Set JsonTips = JSON.parse(TipFile)
+
 errhandler:
     
     If Err.number <> 0 Then
         
         If Err.number = 53 Then
-            Call MsgBox("El archivo Tips.ayu no existe. Por favor, reinstale el juego.", , "Argentum Online")
+            Call MsgBox("El archivo" & "tips_" & Language & ".json no existe. Por favor, reinstale el juego.", , "Argentum Online Libre")
             Call CloseClient
         End If
         
     End If
-    
 End Sub
 
 Sub CargarArrayLluvia()
@@ -255,7 +336,7 @@ errhandler:
     If Err.number <> 0 Then
         
         If Err.number = 53 Then
-            Call MsgBox("El archivo fk.ind no existe. Por favor, reinstale el juego.", , "Argentum Online")
+            Call MsgBox("El archivo fk.ind no existe. Por favor, reinstale el juego.", , "Argentum Online Libre")
             Call CloseClient
         End If
         
@@ -270,6 +351,7 @@ On Error GoTo errhandler:
 
     Set FileManager = New clsIniManager
     Call FileManager.Initialize(Game.path(INIT) & "armas.dat")
+    
     NumWeaponAnims = Val(FileManager.GetValue("INIT", "NumArmas"))
     ReDim WeaponAnimData(1 To NumWeaponAnims) As WeaponAnimData
     
@@ -287,7 +369,7 @@ errhandler:
     If Err.number <> 0 Then
         
         If Err.number = 53 Then
-            Call MsgBox("El archivo armas.dat no existe. Por favor, reinstale el juego.", , "Argentum Online")
+            Call MsgBox("El archivo armas.dat no existe. Por favor, reinstale el juego.", , "Argentum Online Libre")
             Call CloseClient
         End If
         
@@ -328,7 +410,7 @@ errhandler:
     If Err.number <> 0 Then
         
         If Err.number = 53 Then
-            Call MsgBox("El archivo colores.dat no existe. Por favor, reinstale el juego.", , "Argentum Online")
+            Call MsgBox("El archivo colores.dat no existe. Por favor, reinstale el juego.", , "Argentum Online Libre")
             Call CloseClient
         End If
         
@@ -363,7 +445,7 @@ errhandler:
     If Err.number <> 0 Then
         
         If Err.number = 53 Then
-            Call MsgBox("El archivo escudos.dat no existe. Por favor, reinstale el juego.", , "Argentum Online")
+            Call MsgBox("El archivo escudos.dat no existe. Por favor, reinstale el juego.", , "Argentum Online Libre")
             Call CloseClient
         End If
         
@@ -415,7 +497,7 @@ errorH:
     If Err.number <> 0 Then
         
         If Err.number = 53 Then
-            Call MsgBox("El archivo Hechizos.dat no existe. Por favor, reinstale el juego.", , "Argentum Online")
+            Call MsgBox("El archivo Hechizos.dat no existe. Por favor, reinstale el juego.", , "Argentum Online Libre")
             Call CloseClient
         End If
         

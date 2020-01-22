@@ -42,7 +42,7 @@ Private mMaxMemoryBytes              As Long
 Private Sub Class_Terminate()
 
     '**************************************************************
-    'Author: Juan Martín Sotuyo Dodero
+    'Author: Juan Martï¿½n Sotuyo Dodero
     'Last Modify Date: 5/04/2005
     '
     '**************************************************************
@@ -70,7 +70,7 @@ End Sub
 Public Property Get Surface(ByVal fileIndex As Long) As Direct3DTexture8
 
     '**************************************************************
-    'Author: Juan Martín Sotuyo Dodero
+    'Author: Juan Martï¿½n Sotuyo Dodero
     'Last Modify Date: 3/06/2006
     'Used to return a texture
     '**************************************************************
@@ -113,7 +113,7 @@ End Function
  
 Public Sub Initialize(ByRef DD As D3DX8, Optional ByVal maxMemoryUsageInMb As Long = DEFAULT_MEMORY_TO_USE)
     '**************************************************************
-    'Author: Juan Martín Sotuyo Dodero
+    'Author: Juan Martï¿½n Sotuyo Dodero
     'Last Modify Date: 5/04/2005
     '
     '**************************************************************
@@ -164,16 +164,19 @@ Private Function CrearGrafico(ByVal Archivo As Integer, _
                 
             #Else
                 
+                Dim Graphic As String
+                    Graphic = Game.path(Graficos) & .FileName
+                
                 If FileExist(Graphic & ".bmp", vbNormal) Then
-                    Set .Texture = DirectD3D.CreateTextureFromFileEx(DirectDevice, Graphic & ".BMP", D3DX_DEFAULT, D3DX_DEFAULT, 0, 0, D3DFMT_A8R8G8B8, _
+                    Set .Texture = DirectD3D.CreateTextureFromFileEx(DirectDevice, Graphic & ".bmp", D3DX_DEFAULT, D3DX_DEFAULT, 0, 0, D3DFMT_A8R8G8B8, _
                                                                      D3DPOOL_MANAGED, D3DX_FILTER_NONE, D3DX_FILTER_NONE, &HFF000000, texture_info, ByVal 0)
                 
                 ElseIf FileExist(Graphic & ".png", vbNormal) Then
-                    Set .Texture = DirectD3D.CreateTextureFromFileEx(DirectDevice, Graphic & ".PNG", D3DX_DEFAULT, D3DX_DEFAULT, 0, 0, D3DFMT_A8R8G8B8, _
+                    Set .Texture = DirectD3D.CreateTextureFromFileEx(DirectDevice, Graphic & ".png", D3DX_DEFAULT, D3DX_DEFAULT, 0, 0, D3DFMT_A8R8G8B8, _
                                                                      D3DPOOL_MANAGED, D3DX_FILTER_NONE, D3DX_FILTER_NONE, &HFF000000, texture_info, ByVal 0)
                 
                 Else
-                    MsgBox "No se ha podido cargar el grafico con indice: " & fileIndex
+                    Call MsgBox("No se ha podido cargar el grafico con indice: " & Graphic)
                     Call CloseClient
                 
                 End If
@@ -202,6 +205,6 @@ Private Function CrearGrafico(ByVal Archivo As Integer, _
     Exit Function
     
 errhandler:
-    Debug.Print "ERROR AL CARGAR EL GRAFICO> " & Archivo & ".bmp"
+    Debug.Print "ERROR AL CARGAR EL GRAFICO> " & Archivo & ".bmp o .png"
 
 End Function

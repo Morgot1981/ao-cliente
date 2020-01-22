@@ -20,9 +20,11 @@ Public Enum ePath
     Skins
     Sounds
     Musica
+    MusicaMp3
     Mapas
     Lenguajes
     Extras
+    Fonts
 End Enum
 
 Public Type tSetupMods
@@ -43,6 +45,8 @@ Public Type tSetupMods
     bMusic    As Boolean
     bSound    As Boolean
     bSoundEffects As Boolean
+    MusicVolume As Byte
+    SoundVolume As Byte
     
     ' GUILDS
     bGuildNews  As Boolean
@@ -57,6 +61,7 @@ Public Type tSetupMods
     
     ' OTHER
     MostrarTips As Byte
+    MostrarBindKeysSelection As Byte
 End Type
 
 Public ClientSetup As tSetupMods
@@ -91,22 +96,20 @@ Public Function path(ByVal PathType As ePath) As String
         Case ePath.Interfaces
             path = App.path & "\Graficos\Interfaces\"
             
+        Case ePath.Fonts
+            path = App.path & "\Graficos\Fonts\"
+            
         Case ePath.Lenguajes
             path = App.path & "\Lenguajes\"
             
         Case ePath.Mapas
-            'En caso que no haya un mundo seleccionado en la propiedad Mundo
-            'Seleccionamos Alkon como mundo default
-            'Esto hay que eliminarlo de aqui ya que no tiene por que estar aqui, esto es un parche rapido para evitar posibles errores
-            'Cuando hay problemas de conexion
-            If LenB(MundoSeleccionado) = 0 Then
-                MundoSeleccionado = "Alkon"
-            End If
-            
             path = App.path & "\Mapas\" & "\" & MundoSeleccionado & "\"
             
         Case ePath.Musica
             path = App.path & "\AUDIO\MIDI\"
+
+        Case ePath.MusicaMp3
+            path = App.path & "\AUDIO\MP3\"
             
         Case ePath.Sounds
             path = App.path & "\AUDIO\WAV\"
@@ -127,7 +130,6 @@ Public Sub LeerConfiguracion()
     Call Lector.Initialize(Game.path(INIT) & CLIENT_FILE)
     
     With ClientSetup
-        
         ' VIDEO
         .Aceleracion = Lector.GetValue("VIDEO", "RENDER_MODE")
         .byMemory = Lector.GetValue("VIDEO", "DINAMIC_MEMORY")
@@ -140,9 +142,11 @@ Public Sub LeerConfiguracion()
         .vSync = CBool(Lector.GetValue("VIDEO", "VSYNC"))
         
         ' AUDIO
-        .bMusic = CBool(Lector.GetValue("AUDIO", "MIDI"))
-        .bSound = CBool(Lector.GetValue("AUDIO", "WAV"))
+        .bMusic = CBool(Lector.GetValue("AUDIO", "MUSIC"))
+        .bSound = CBool(Lector.GetValue("AUDIO", "SOUND"))
         .bSoundEffects = CBool(Lector.GetValue("AUDIO", "SOUND_EFFECTS"))
+        .MusicVolume = CByte(Lector.GetValue("AUDIO", "MUSIC_VOLUME"))
+        .SoundVolume = CByte(Lector.GetValue("AUDIO", "SOUND_VOLUME"))
         
         ' GUILD
         .bGuildNews = CBool(Lector.GetValue("GUILD", "NEWS"))
@@ -152,11 +156,12 @@ Public Sub LeerConfiguracion()
         ' FRAGSHOOTER
         .bDie = CBool(Lector.GetValue("FRAGSHOOTER", "DIE"))
         .bKill = CBool(Lector.GetValue("FRAGSHOOTER", "KILL"))
-        .byMurderedLevel = CBool(Lector.GetValue("FRAGSHOOTER", "MURDERED_LEVEL"))
+        .byMurderedLevel = CByte(Lector.GetValue("FRAGSHOOTER", "MURDERED_LEVEL"))
         .bActive = CBool(Lector.GetValue("FRAGSHOOTER", "ACTIVE"))
         
         ' OTHER
         .MostrarTips = CBool(Lector.GetValue("OTHER", "MOSTRAR_TIPS"))
+        .MostrarBindKeysSelection = CBool(Lector.GetValue("OTHER", "MOSTRAR_BIND_KEYS_SELECTION"))
         
         Debug.Print "Modo de Renderizado: " & IIf(.Aceleracion = 1, "Mixto (Hardware + Software)", "Hardware")
         Debug.Print "byMemory: " & .byMemory
@@ -170,6 +175,8 @@ Public Sub LeerConfiguracion()
         Debug.Print "bMusic: " & .bMusic
         Debug.Print "bSound: " & .bSound
         Debug.Print "bSoundEffects: " & .bSoundEffects
+        Debug.Print "MusicVolume: " & .MusicVolume
+        Debug.Print "SoundVolume: " & .SoundVolume
         Debug.Print "bGuildNews: " & .bGuildNews
         Debug.Print "bGldMsgConsole: " & .bGldMsgConsole
         Debug.Print "bCantMsgs: " & .bCantMsgs
@@ -183,10 +190,10 @@ Public Sub LeerConfiguracion()
   
 fileErr:
 
-    'If Err.number <> 0 Then
-    '    MsgBox ("Ha ocurrido un error al cargar la configuracion del cliente. Error " & Err.number & " : " & Err.Description)
-    '    End 'Usar "End" en vez del Sub CloseClient() ya que todavia no se inicializa nada.
-    'End If
+    If Err.number <> 0 Then
+       MsgBox ("Ha ocurrido un error al cargar la configuracion del cliente. Error " & Err.number & " : " & Err.Description)
+       End 'Usar "End" en vez del Sub CloseClient() ya que todavia no se inicializa nada.
+    End If
 End Sub
 
 Public Sub GuardarConfiguracion()
@@ -194,45 +201,48 @@ Public Sub GuardarConfiguracion()
     
     Set Lector = New clsIniManager
     Call Lector.Initialize(Game.path(INIT) & CLIENT_FILE)
-    
+
     With ClientSetup
         
         ' VIDEO
         Call Lector.ChangeValue("VIDEO", "RENDER_MODE", .Aceleracion)
         Call Lector.ChangeValue("VIDEO", "DINAMIC_MEMORY", .byMemory)
-        Call Lector.ChangeValue("VIDEO", "DISABLE_RESOLUTION_CHANGE", CInt(.bNoRes))
-        Call Lector.ChangeValue("VIDEO", "PROYECTILE_ENGINE", CInt(.ProyectileEngine))
-        Call Lector.ChangeValue("VIDEO", "PARTY_MEMBERS", CInt(.PartyMembers))
-        Call Lector.ChangeValue("VIDEO", "TONALIDAD_PJ", CInt(.TonalidadPJ))
-        Call Lector.ChangeValue("VIDEO", "SOMBRAS", CInt(.UsarSombras))
-        Call Lector.ChangeValue("VIDEO", "PARTICLE_ENGINE", CInt(.ParticleEngine))
-        Call Lector.ChangeValue("VIDEO", "VSYNC", CInt(.vSync))
+        Call Lector.ChangeValue("VIDEO", "DISABLE_RESOLUTION_CHANGE", IIf(.bNoRes, "True", "False"))
+        Call Lector.ChangeValue("VIDEO", "PROYECTILE_ENGINE", IIf(.ProyectileEngine, "True", "False"))
+        Call Lector.ChangeValue("VIDEO", "PARTY_MEMBERS", IIf(.PartyMembers, "True", "False"))
+        Call Lector.ChangeValue("VIDEO", "TONALIDAD_PJ", IIf(.TonalidadPJ, "True", "False"))
+        Call Lector.ChangeValue("VIDEO", "SOMBRAS", IIf(.UsarSombras, "True", "False"))
+        Call Lector.ChangeValue("VIDEO", "PARTICLE_ENGINE", IIf(.ParticleEngine, "True", "False"))
+        Call Lector.ChangeValue("VIDEO", "VSYNC", IIf(.vSync, "True", "False"))
         
         ' AUDIO
-        Call Lector.ChangeValue("AUDIO", "MIDI", CInt(.bMusic))
-        Call Lector.ChangeValue("AUDIO", "WAV", CInt(.bSound))
-        Call Lector.ChangeValue("AUDIO", "SOUND_EFFECTS", CInt(.bSoundEffects))
+        Call Lector.ChangeValue("AUDIO", "MUSIC", IIf(Audio.MusicActivated, "True", "False"))
+        Call Lector.ChangeValue("AUDIO", "SOUND", IIf(Audio.SoundActivated, "True", "False"))
+        Call Lector.ChangeValue("AUDIO", "SOUND_EFFECTS", IIf(Audio.SoundEffectsActivated, "True", "False"))
+        Call Lector.ChangeValue("AUDIO", "MUSIC_VOLUME", Audio.MusicVolume)
+        Call Lector.ChangeValue("AUDIO", "SOUND_VOLUME", Audio.SoundVolume)
         
         ' GUILD
-        Call Lector.ChangeValue("GUILD", "NEWS", CInt(.bGuildNews))
-        Call Lector.ChangeValue("GUILD", "MESSAGES", CInt(.bGldMsgConsole))
-        Call Lector.ChangeValue("GUILD", "MAX_MESSAGES", CInt(.bCantMsgs))
+        Call Lector.ChangeValue("GUILD", "NEWS", IIf(.bGuildNews, "True", "False"))
+        Call Lector.ChangeValue("GUILD", "MESSAGES", IIf(DialogosClanes.Activo, "True", "False"))
+        Call Lector.ChangeValue("GUILD", "MAX_MESSAGES", CByte(DialogosClanes.CantidadDialogos))
         
         ' FRAGSHOOTER
-        Call Lector.ChangeValue("FRAGSHOOTER", "DIE", CInt(.bDie))
-        Call Lector.ChangeValue("FRAGSHOOTER", "KILL", CInt(.bKill))
-        Call Lector.ChangeValue("FRAGSHOOTER", "MURDERED_LEVEL", CInt(.byMurderedLevel))
-        Call Lector.ChangeValue("FRAGSHOOTER", "ACTIVE", CInt(.bActive))
+        Call Lector.ChangeValue("FRAGSHOOTER", "DIE", IIf(.bDie, "True", "False"))
+        Call Lector.ChangeValue("FRAGSHOOTER", "KILL", IIf(.bKill, "True", "False"))
+        Call Lector.ChangeValue("FRAGSHOOTER", "MURDERED_LEVEL", CByte(.byMurderedLevel))
+        Call Lector.ChangeValue("FRAGSHOOTER", "ACTIVE", IIf(.bActive, "True", "False"))
         
         ' OTHER
-        Call Lector.ChangeValue("OTHER", "MOSTRAR_TIPS", CInt(.MostrarTips))
+        ' Lo comento por que no tiene por que setearse aqui esto.
+        ' Al menos no al hacer click en el boton Salir del formulario opciones (Recox)
+        ' Call Lector.ChangeValue("OTHER", "MOSTRAR_TIPS", CBool(.MostrarTips))
     End With
     
     Call Lector.DumpFile(Game.path(INIT) & CLIENT_FILE)
 fileErr:
 
     If Err.number <> 0 Then
-        MsgBox ("Ha ocurrido un error al cargar la configuracion del cliente. Error " & Err.number & " : " & Err.Description)
-        End 'Usar "End" en vez del Sub CloseClient() ya que todavia no se inicializa nada.
+        MsgBox ("Ha ocurrido un error al guardar la configuracion del cliente. Error " & Err.number & " : " & Err.Description)
     End If
 End Sub

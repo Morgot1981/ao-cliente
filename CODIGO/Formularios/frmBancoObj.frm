@@ -86,6 +86,139 @@ Begin VB.Form frmBancoObj
       Top             =   2400
       Width           =   2430
    End
+   Begin VB.Label lblInventario 
+      BackStyle       =   0  'Transparent
+      Caption         =   "Inventario"
+      BeginProperty Font 
+         Name            =   "MS Sans Serif"
+         Size            =   9.75
+         Charset         =   0
+         Weight          =   700
+         Underline       =   0   'False
+         Italic          =   0   'False
+         Strikethrough   =   0   'False
+      EndProperty
+      ForeColor       =   &H0000C0C0&
+      Height          =   255
+      Left            =   4680
+      TabIndex        =   14
+      Top             =   1920
+      Width           =   1335
+   End
+   Begin VB.Label lblBoveda 
+      BackStyle       =   0  'Transparent
+      Caption         =   "Boveda"
+      BeginProperty Font 
+         Name            =   "MS Sans Serif"
+         Size            =   9.75
+         Charset         =   0
+         Weight          =   700
+         Underline       =   0   'False
+         Italic          =   0   'False
+         Strikethrough   =   0   'False
+      EndProperty
+      ForeColor       =   &H0000C0C0&
+      Height          =   255
+      Left            =   1320
+      TabIndex        =   13
+      Top             =   1920
+      Width           =   1215
+   End
+   Begin VB.Label lblRetirar 
+      BackStyle       =   0  'Transparent
+      Caption         =   "Cantidad"
+      BeginProperty Font 
+         Name            =   "MS Sans Serif"
+         Size            =   8.25
+         Charset         =   0
+         Weight          =   700
+         Underline       =   0   'False
+         Italic          =   0   'False
+         Strikethrough   =   0   'False
+      EndProperty
+      ForeColor       =   &H0000FF00&
+      Height          =   375
+      Left            =   5400
+      TabIndex        =   12
+      Top             =   1200
+      Width           =   975
+   End
+   Begin VB.Label lblCantidad 
+      BackStyle       =   0  'Transparent
+      Caption         =   "Cantidad"
+      BeginProperty Font 
+         Name            =   "MS Sans Serif"
+         Size            =   8.25
+         Charset         =   0
+         Weight          =   700
+         Underline       =   0   'False
+         Italic          =   0   'False
+         Strikethrough   =   0   'False
+      EndProperty
+      ForeColor       =   &H0000FF00&
+      Height          =   375
+      Left            =   2520
+      TabIndex        =   11
+      Top             =   1440
+      Width           =   975
+   End
+   Begin VB.Label lblDisponible 
+      BackStyle       =   0  'Transparent
+      Caption         =   "Disponible"
+      BeginProperty Font 
+         Name            =   "MS Sans Serif"
+         Size            =   8.25
+         Charset         =   0
+         Weight          =   700
+         Underline       =   0   'False
+         Italic          =   0   'False
+         Strikethrough   =   0   'False
+      EndProperty
+      ForeColor       =   &H0000FF00&
+      Height          =   375
+      Left            =   2520
+      TabIndex        =   10
+      Top             =   960
+      Width           =   975
+   End
+   Begin VB.Label lblDepositar 
+      BackStyle       =   0  'Transparent
+      Caption         =   "Depositar"
+      BeginProperty Font 
+         Name            =   "MS Sans Serif"
+         Size            =   8.25
+         Charset         =   0
+         Weight          =   700
+         Underline       =   0   'False
+         Italic          =   0   'False
+         Strikethrough   =   0   'False
+      EndProperty
+      ForeColor       =   &H0000FF00&
+      Height          =   375
+      Left            =   600
+      TabIndex        =   9
+      Top             =   1200
+      Width           =   975
+   End
+   Begin VB.Label lblTitle 
+      BackStyle       =   0  'Transparent
+      Caption         =   "Oro"
+      BeginProperty Font 
+         Name            =   "MS Sans Serif"
+         Size            =   13.5
+         Charset         =   0
+         Weight          =   400
+         Underline       =   0   'False
+         Italic          =   0   'False
+         Strikethrough   =   0   'False
+      EndProperty
+      ForeColor       =   &H0000C0C0&
+      Height          =   375
+      Left            =   960
+      TabIndex        =   8
+      Top             =   480
+      Width           =   975
+   End
    Begin VB.Label lblUserGld 
       AutoSize        =   -1  'True
       BackStyle       =   0  'Transparent
@@ -107,11 +240,11 @@ Begin VB.Form frmBancoObj
       Width           =   135
    End
    Begin VB.Image imgDepositarOro 
-      Height          =   930
+      Height          =   705
       Left            =   1560
       Tag             =   "0"
-      Top             =   945
-      Width           =   1050
+      Top             =   1050
+      Width           =   810
    End
    Begin VB.Image imgRetirarOro 
       Height          =   765
@@ -329,9 +462,43 @@ Private Sub Form_Load()
 
     'Cargamos la interfase
     Me.Picture = LoadPicture(Game.path(Interfaces) & "Boveda.jpg")
-    
+        
+    Call LoadTextsForm
     Call LoadButtons
+End Sub
+
+Private Sub Form_Activate()
+On Error Resume Next
+
+    InvBanco(0).DrawInventory
+    InvBanco(1).DrawInventory
     
+End Sub
+
+Private Sub Form_GotFocus()
+On Error Resume Next
+
+    InvBanco(0).DrawInventory
+    InvBanco(1).DrawInventory
+    
+End Sub
+
+Private Sub Form_MouseUp(Button As Integer, Shift As Integer, X As Single, Y As Single)
+On Error Resume Next
+
+    InvBanco(0).DrawInventory
+    InvBanco(1).DrawInventory
+    
+End Sub
+
+Private Sub LoadTextsForm()
+    Me.lblTitle.Caption = JsonLanguage.item("FRM_BANCOOBJ_TITLE").item("TEXTO")
+    Me.lblDepositar.Caption = JsonLanguage.item("FRM_BANCOOBJ_DEPOSITAR").item("TEXTO")
+    Me.lblDisponible.Caption = JsonLanguage.item("FRM_BANCOOBJ_DISPONIBLE").item("TEXTO")
+    Me.lblCantidad.Caption = JsonLanguage.item("FRM_BANCOOBJ_CANTIDAD").item("TEXTO")
+    Me.lblRetirar.Caption = JsonLanguage.item("FRM_BANCOOBJ_RETIRAR").item("TEXTO")
+    Me.lblBoveda.Caption = JsonLanguage.item("FRM_BANCOOBJ_BOVEDA").item("TEXTO")
+    Me.lblInventario.Caption = JsonLanguage.item("FRM_BANCOOBJ_INVENTARIO").item("TEXTO")
 End Sub
 
 Private Sub LoadButtons()
@@ -355,7 +522,6 @@ Private Sub LoadButtons()
     
     Image1(0).MouseIcon = picMouseIcon
     Image1(1).MouseIcon = picMouseIcon
-    
 End Sub
 
 Private Sub Form_MouseMove(Button As Integer, Shift As Integer, X As Single, Y As Single)
@@ -397,18 +563,18 @@ Private Sub PicBancoInv_Click()
 
     If InvBanco(0).SelectedItem <> 0 Then
         With UserBancoInventory(InvBanco(0).SelectedItem)
-            Label1(0).Caption = .Name
+            Label1(0).Caption = .name
             
             Select Case .OBJType
                 Case 2, 32
-                    Label1(1).Caption = "Max " & JsonLanguage.Item("GOLPE").Item("TEXTO") & ":" & .MaxHit
-                    Label1(2).Caption = "Min " & JsonLanguage.Item("GOLPE").Item("TEXTO") & ":" & .MinHit
+                    Label1(1).Caption = "Max " & JsonLanguage.item("GOLPE").item("TEXTO") & ":" & .MaxHit
+                    Label1(2).Caption = "Min " & JsonLanguage.item("GOLPE").item("TEXTO") & ":" & .MinHit
                     Label1(1).Visible = True
                     Label1(2).Visible = True
                     
                 Case 3, 16, 17
-                    Label1(1).Caption = "Max " & JsonLanguage.Item("DEFENSA").Item("TEXTO") & ":" & .MaxDef
-                    Label1(2).Caption = "Min " & JsonLanguage.Item("DEFENSA").Item("TEXTO") & ":" & .MinDef
+                    Label1(1).Caption = "Max " & JsonLanguage.item("DEFENSA").item("TEXTO") & ":" & .MaxDef
+                    Label1(2).Caption = "Min " & JsonLanguage.item("DEFENSA").item("TEXTO") & ":" & .MinDef
                     Label1(1).Visible = True
                     Label1(2).Visible = True
                     
@@ -440,14 +606,14 @@ Private Sub PicInv_Click()
             
             Select Case .OBJType(InvBanco(1).SelectedItem)
                 Case eObjType.otWeapon, eObjType.otFlechas
-                    Label1(1).Caption = "Max " & JsonLanguage.Item("GOLPE").Item("TEXTO") & ":" & .MaxHit(InvBanco(1).SelectedItem)
-                    Label1(2).Caption = "Min " & JsonLanguage.Item("GOLPE").Item("TEXTO") & ":" & .MinHit(InvBanco(1).SelectedItem)
+                    Label1(1).Caption = "Max " & JsonLanguage.item("GOLPE").item("TEXTO") & ":" & .MaxHit(InvBanco(1).SelectedItem)
+                    Label1(2).Caption = "Min " & JsonLanguage.item("GOLPE").item("TEXTO") & ":" & .MinHit(InvBanco(1).SelectedItem)
                     Label1(1).Visible = True
                     Label1(2).Visible = True
                     
                 Case eObjType.otcasco, eObjType.otArmadura, eObjType.otescudo ' 3, 16, 17
-                    Label1(1).Caption = "Max " & JsonLanguage.Item("DEFENSA").Item("TEXTO") & ":" & .MaxDef(InvBanco(1).SelectedItem)
-                    Label1(2).Caption = "Min " & JsonLanguage.Item("DEFENSA").Item("TEXTO") & ":" & .MinDef(InvBanco(1).SelectedItem)
+                    Label1(1).Caption = "Max " & JsonLanguage.item("DEFENSA").item("TEXTO") & ":" & .MaxDef(InvBanco(1).SelectedItem)
+                    Label1(2).Caption = "Min " & JsonLanguage.item("DEFENSA").item("TEXTO") & ":" & .MinDef(InvBanco(1).SelectedItem)
                     Label1(1).Visible = True
                     Label1(2).Visible = True
                     

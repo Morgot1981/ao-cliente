@@ -139,7 +139,9 @@ Public Function Char_Techo() As Boolean
       
                 If (Map_InBounds(.Pos.X, .Pos.Y)) Then '// Posicion valida
                        
-                        If (MapData(.Pos.X, .Pos.Y).Trigger = eTrigger.BAJOTECHO) Then
+                        If (MapData(.Pos.X, .Pos.Y).Trigger = eTrigger.BAJOTECHO Or _
+                            MapData(.Pos.X, .Pos.Y).Trigger = eTrigger.CASA) Then
+                                
                                 Char_Techo = True
                         End If
                                
@@ -179,6 +181,8 @@ Public Sub Char_UserPos()
                 bTecho = Char_Techo '// Pos : Techo :P
                
                 frmMain.Coord.Caption = "Map:" & UserMap & " X:" & X & " Y:" & Y
+                
+                Call frmMain.ActualizarMiniMapa
  
                 Exit Sub
  

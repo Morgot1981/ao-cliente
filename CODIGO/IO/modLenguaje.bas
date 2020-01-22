@@ -15,6 +15,7 @@ Private Declare Function GetLocaleInfo _
                                         ByVal cchData As Long) As Long
 
 Public JsonLanguage As Object
+Public Language As String
 
 Public Function FileToString(strFileName As String) As String
     '###################################################################################
@@ -55,14 +56,13 @@ Public Sub SetLanguageApplication()
     '************************************************************************************
 
     Dim LangFile As String
-    Dim Language As String
     
     Language = GetVar(Game.path(INIT) & "Config.ini", "Parameters", "Language")
     
     ' Si no se especifica el idioma en el archivo de configuracion, se le pregunta si quiere usar castellano
     ' y escribimos el archivo de configuracion con el idioma seleccionado
     If LenB(Language) = 0 Then
-        If MsgBox("Iniciar con idioma Castellano? // Start with Spanish, if you want the game in English press No", vbYesNo, "Argentum Online") = vbYes Then
+        If MsgBox("Iniciar con idioma Castellano? // Start with Spanish, if you want the game in English press No", vbYesNo, "Argentum Online Libre") = vbYes Then
             Language = "spanish"
         Else
             Language = "english"

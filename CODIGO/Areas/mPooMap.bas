@@ -108,7 +108,8 @@ Sub Map_MoveTo(ByVal Direccion As E_Heading)
       '***************************************************
 
       Dim LegalOk As Boolean
-        Static lastmovement As Long
+      Static lastmovement As Long
+      
       If Cartel Then Cartel = False
     
       Select Case Direccion
@@ -126,37 +127,47 @@ Sub Map_MoveTo(ByVal Direccion As E_Heading)
                   LegalOk = Map_LegalPos(UserPos.X - 1, UserPos.Y)
                         
       End Select
-        If LegalOk And Not UserDescansar And Not UserParalizado Then
-            Call Char_MovebyHead(UserCharIndex, Direccion)
-            Call Char_MoveScreen(Direccion)
-        End If
 
-      If LegalOk And Not UserParalizado Then
-            Call WriteWalk(Direccion)
-            Call frmMain.ActualizarMiniMapa   'integrado por ReyarB
+      If LegalOk And Not UserParalizado And Not UserDescansar And Not UserMeditar Then
+          Call WriteWalk(Direccion)
+          Call frmMain.ActualizarMiniMapa   'integrado por ReyarB
+
+          Call Char_MovebyHead(UserCharIndex, Direccion)
+          Call Char_MoveScreen(Direccion)
       Else
-        If (charlist(UserCharIndex).Heading <> Direccion) And (GetTickCount - lastmovement > 96) Then
+        If (charlist(UserCharIndex).Heading <> Direccion) Then
               Call WriteChangeHeading(Direccion)
               Call Char_SetHeading(UserCharIndex, Direccion)
-              lastmovement = GetTickCount
         End If
                 
       End If
     
       If frmMain.macrotrabajo.Enabled Then Call frmMain.DesactivarMacroTrabajo
       If frmMain.trainingMacro.Enabled Then Call frmMain.DesactivarMacroHechizos
+
       ' Update 3D sounds!
       Call Audio.MoveListener(UserPos.X, UserPos.Y)
+  
+      ' Esto es un parche por que por alguna razon si el pj esta meditando y nos movemos el juego explota por eso cambie 
+      ' Las validaciones en la linea 131 y agregue esto para arreglarlo (Recox)
+      If UserMeditar Then
+        UserMeditar = Not UserMeditar
+      End If
+
+      If UserDescansar Then
+        UserDescansar = Not UserDescansar
+      End If
         
 End Sub
 
 Function Map_LegalPos(ByVal X As Integer, ByVal Y As Integer) As Boolean
       '*****************************************************************
       'Author: ZaMa
-      'Last Modify Date: 01/08/2009
+      'Last Modify Date: 12/01/2020
       'Checks to see if a tile position is legal, including if there is a casper in the tile
       '10/05/2009: ZaMa - Now you can't change position with a casper which is in the shore.
       '01/08/2009: ZaMa - Now invisible admins can't change position with caspers.
+      '12/01/2020: Recox - Now we manage monturas.
       '*****************************************************************
 
       Dim CharIndex As Integer
@@ -238,6 +249,13 @@ Function Map_LegalPos(ByVal X As Integer, ByVal Y As Integer) As Boolean
                
             Exit Function
 
+      End If
+
+      'TODO: Hacer function HayTecho!!!!
+      'Esta el usuario Equitando bajo un techo?
+      If UserEquitando And bTecho = True Then
+            Call ShowConsoleMsg(JsonLanguage.Item("MENSAJE_MONTURA_SALIR").Item("TEXTO"))
+            Exit Function
       End If
       
       If UserEvento Then Exit Function

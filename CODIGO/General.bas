@@ -32,7 +32,6 @@ Attribute VB_Name = "Mod_General"
 'Pablo Ignacio Marquez
 
 Option Explicit
-'Public cKeys As Collection
 Public bFogata As Boolean
 
 Public Type tRedditPost
@@ -46,6 +45,8 @@ Public bLluvia() As Byte ' Array para determinar si
 'debemos mostrar la animacion de la lluvia
 
 Private lFrameTimer As Long
+
+Private keysMovementPressedQueue As clsArrayList
 
 Public Function RandomNumber(ByVal LowerBound As Long, ByVal UpperBound As Long) As Long
     'Initialize randomizer
@@ -133,13 +134,13 @@ Public Sub RefreshAllChars()
 'Goes through the charlist and replots all the characters on the map
 'Used to make sure everyone is visible
 '*****************************************************************
-    Dim loopc As Long
+    Dim LoopC As Long
     
-    For loopc = 1 To LastChar
-        If charlist(loopc).active = 1 Then
-            MapData(charlist(loopc).Pos.X, charlist(loopc).Pos.Y).CharIndex = loopc
+    For LoopC = 1 To LastChar
+        If charlist(LoopC).active = 1 Then
+            MapData(charlist(LoopC).Pos.X, charlist(LoopC).Pos.Y).CharIndex = LoopC
         End If
-    Next loopc
+    Next LoopC
 End Sub
 
 Function AsciiValidos(ByVal cad As String) As Boolean
@@ -165,7 +166,7 @@ Function CheckUserData() As Boolean
     
     'Validamos los datos del user
     
-    Dim loopc As Long
+    Dim LoopC As Long
     Dim CharAscii As Integer
     Dim Len_accountName As Long, Len_accountPassword As Long
 
@@ -176,13 +177,13 @@ Function CheckUserData() As Boolean
     
     Len_accountPassword = Len(AccountPassword)
     
-    For loopc = 1 To Len_accountPassword
-        CharAscii = Asc(mid$(AccountPassword, loopc, 1))
+    For LoopC = 1 To Len_accountPassword
+        CharAscii = Asc(mid$(AccountPassword, LoopC, 1))
         If Not LegalCharacter(CharAscii) Then
             MsgBox Replace$(JsonLanguage.item("VALIDACION_BAD_PASSWORD").item("TEXTO").item(2), "VAR_CHAR_INVALIDO", Chr$(CharAscii))
             Exit Function
         End If
-    Next loopc
+    Next LoopC
 
     If Len(AccountName) > 30 Then
         MsgBox JsonLanguage.item("VALIDACION_BAD_EMAIL").item("TEXTO").item(2)
@@ -191,13 +192,13 @@ Function CheckUserData() As Boolean
         
     Len_accountName = Len(AccountName)
     
-    For loopc = 1 To Len_accountName
-        CharAscii = Asc(mid$(AccountName, loopc, 1))
+    For LoopC = 1 To Len_accountName
+        CharAscii = Asc(mid$(AccountName, LoopC, 1))
         If Not LegalCharacter(CharAscii) Then
             MsgBox Replace$(JsonLanguage.item("VALIDACION_BAD_PASSWORD").item("TEXTO").item(4), "VAR_CHAR_INVALIDO", Chr$(CharAscii))
             Exit Function
         End If
-    Next loopc
+    Next LoopC
     
     CheckUserData = True
 End Function
@@ -241,9 +242,10 @@ Function LegalCharacter(ByVal KeyAscii As Integer) As Boolean
 End Function
 
 Sub SetConnected()
-'*****************************************************************
-'Sets the client to "Connect" mode
-'*****************************************************************
+    '*****************************************************************
+    'Sets the client to "Connect" mode
+    '*****************************************************************
+    
     'Set Connected
     Connected = True
 
@@ -252,63 +254,20 @@ Sub SetConnected()
     Unload frmConnect
     Unload frmPanelAccount
     
-    frmMain.lblName.Caption = UserName
-    'Load main form
-    frmMain.Visible = True
-    lastKeys.Clear
-    Call frmMain.ControlSM(eSMType.mWork, False)
-    Call frmMain.ControlSM(eSMType.mSpells, False)
+    'Vaciamos la cola de movimiento
+    keysMovementPressedQueue.Clear
+    
+    With frmMain
+    
+        .lblName.Caption = UserName
+    
+        'Load main form
+        .Visible = True
+
+    End With
+    
     FPSFLAG = True
 
-End Sub
-
-Sub CargarTip()
-    Dim N As Integer
-    N = RandomNumber(1, UBound(Tips))
-    
-    frmtip.tip.Caption = Tips(N)
-End Sub
-
-Sub MoveTo(ByVal Direccion As E_Heading)
-'***************************************************
-'Author: Alejandro Santos (AlejoLp)
-'Last Modify Date: 06/28/2008
-'Last Modified By: Lucas Tavolaro Ortiz (Tavo)
-' 06/03/2006: AlejoLp - Elimine las funciones Move[NSWE] y las converti a esta
-' 12/08/2007: Tavo    - Si el usuario esta paralizado no se puede mover.
-' 06/28/2008: NicoNZ - Saque lo que impedia que si el usuario estaba paralizado se ejecute el sub.
-'***************************************************
-    Dim LegalOk As Boolean
-    
-    If Cartel Then Cartel = False
-    
-    Select Case Direccion
-        Case E_Heading.NORTH
-            LegalOk = MoveToLegalPos(UserPos.X, UserPos.Y - 1)
-        Case E_Heading.EAST
-            LegalOk = MoveToLegalPos(UserPos.X + 1, UserPos.Y)
-        Case E_Heading.SOUTH
-            LegalOk = MoveToLegalPos(UserPos.X, UserPos.Y + 1)
-        Case E_Heading.WEST
-            LegalOk = MoveToLegalPos(UserPos.X - 1, UserPos.Y)
-    End Select
-    
-    If LegalOk And Not UserParalizado Then
-        Call WriteWalk(Direccion)
-        If Not UserDescansar And Not UserMeditar Then
-            MoveCharbyHead UserCharIndex, Direccion
-            MoveScreen Direccion
-        End If
-    Else
-        If charlist(UserCharIndex).Heading <> Direccion Then
-            Call WriteChangeHeading(Direccion)
-        End If
-    End If
-    If frmMain.trainingMacro.Enabled Then Call frmMain.DesactivarMacroHechizos
-    If frmMain.macrotrabajo.Enabled Then Call frmMain.DesactivarMacroTrabajo
-    
-    ' Update 3D sounds!
-    Call Audio.MoveListener(UserPos.X, UserPos.Y)
 End Sub
 
 Sub RandomMove()
@@ -320,10 +279,38 @@ Sub RandomMove()
     Call Map_MoveTo(RandomNumber(NORTH, WEST))
 End Sub
 
+Private Sub AddMovementToKeysMovementPressedQueue()
+    If GetKeyState(CustomKeys.BindedKey(eKeyType.mKeyUp)) < 0 Then
+        If keysMovementPressedQueue.itemExist(CustomKeys.BindedKey(eKeyType.mKeyUp)) = False Then keysMovementPressedQueue.Add (CustomKeys.BindedKey(eKeyType.mKeyUp)) ' Agrega la tecla al arraylist
+    Else
+        If keysMovementPressedQueue.itemExist(CustomKeys.BindedKey(eKeyType.mKeyUp)) Then keysMovementPressedQueue.Remove (CustomKeys.BindedKey(eKeyType.mKeyUp)) ' Remueve la tecla que teniamos presionada
+    End If
+
+    If GetKeyState(CustomKeys.BindedKey(eKeyType.mKeyDown)) < 0 Then
+        If keysMovementPressedQueue.itemExist(CustomKeys.BindedKey(eKeyType.mKeyDown)) = False Then keysMovementPressedQueue.Add (CustomKeys.BindedKey(eKeyType.mKeyDown)) ' Agrega la tecla al arraylist
+    Else
+        If keysMovementPressedQueue.itemExist(CustomKeys.BindedKey(eKeyType.mKeyDown)) Then keysMovementPressedQueue.Remove (CustomKeys.BindedKey(eKeyType.mKeyDown)) ' Remueve la tecla que teniamos presionada
+    End If
+
+    If GetKeyState(CustomKeys.BindedKey(eKeyType.mKeyLeft)) < 0 Then
+        If keysMovementPressedQueue.itemExist(CustomKeys.BindedKey(eKeyType.mKeyLeft)) = False Then keysMovementPressedQueue.Add (CustomKeys.BindedKey(eKeyType.mKeyLeft)) ' Agrega la tecla al arraylist
+    Else
+        If keysMovementPressedQueue.itemExist(CustomKeys.BindedKey(eKeyType.mKeyLeft)) Then keysMovementPressedQueue.Remove (CustomKeys.BindedKey(eKeyType.mKeyLeft)) ' Remueve la tecla que teniamos presionada
+    End If
+
+    If GetKeyState(CustomKeys.BindedKey(eKeyType.mKeyRight)) < 0 Then
+        If keysMovementPressedQueue.itemExist(CustomKeys.BindedKey(eKeyType.mKeyRight)) = False Then keysMovementPressedQueue.Add (CustomKeys.BindedKey(eKeyType.mKeyRight)) ' Agrega la tecla al arraylist
+    Else
+        If keysMovementPressedQueue.itemExist(CustomKeys.BindedKey(eKeyType.mKeyRight)) Then keysMovementPressedQueue.Remove (CustomKeys.BindedKey(eKeyType.mKeyRight)) ' Remueve la tecla que teniamos presionada
+    End If
+End Sub
+
 Private Sub CheckKeys()
      '*****************************************************************
     'Checks keys and respond
     '*****************************************************************
+    Static lastmovement As Long
+
     'No input allowed while Argentum is not the active window
     If Not Application.IsAppActive() Then Exit Sub
     'No walking when in commerce or banking.
@@ -336,60 +323,44 @@ Private Sub CheckKeys()
     
     'TODO: Deberia informarle por consola?
     If Traveling Then Exit Sub
-    
+
+    'Si esta chateando, no mover el pj, tanto para chat de clanes y normal
+    If frmMain.SendTxt.Visible Then Exit Sub
+    If frmMain.SendCMSTXT.Visible Then Exit Sub
+
+    'Don't allow any these keys during movement..
     If UserMoving = 0 Then
         If Not UserEstupido Then
-            If GetKeyState(CustomKeys.BindedKey(eKeyType.mKeyUp)) < 0 Then
-                If lastKeys.itemExist(CustomKeys.BindedKey(eKeyType.mKeyUp)) = False Then lastKeys.Add (CustomKeys.BindedKey(eKeyType.mKeyUp)) ' Agrega la tecla al arraylist
-            Else
-                If lastKeys.itemExist(CustomKeys.BindedKey(eKeyType.mKeyUp)) Then lastKeys.Remove (CustomKeys.BindedKey(eKeyType.mKeyUp)) ' Remueve la tecla que teniamos presionada
-            End If
-            
-            If GetKeyState(CustomKeys.BindedKey(eKeyType.mKeyDown)) < 0 Then
-                If lastKeys.itemExist(CustomKeys.BindedKey(eKeyType.mKeyDown)) = False Then lastKeys.Add (CustomKeys.BindedKey(eKeyType.mKeyDown)) ' Agrega la tecla al arraylist
-            Else
-                If lastKeys.itemExist(CustomKeys.BindedKey(eKeyType.mKeyDown)) Then lastKeys.Remove (CustomKeys.BindedKey(eKeyType.mKeyDown)) ' Remueve la tecla que teniamos presionada
-            End If
-            
-            If GetKeyState(CustomKeys.BindedKey(eKeyType.mKeyLeft)) < 0 Then
-                If lastKeys.itemExist(CustomKeys.BindedKey(eKeyType.mKeyLeft)) = False Then lastKeys.Add (CustomKeys.BindedKey(eKeyType.mKeyLeft)) ' Agrega la tecla al arraylist
-            Else
-                If lastKeys.itemExist(CustomKeys.BindedKey(eKeyType.mKeyLeft)) Then lastKeys.Remove (CustomKeys.BindedKey(eKeyType.mKeyLeft)) ' Remueve la tecla que teniamos presionada
-            End If
-            
-            If GetKeyState(CustomKeys.BindedKey(eKeyType.mKeyRight)) < 0 Then
-                If lastKeys.itemExist(CustomKeys.BindedKey(eKeyType.mKeyRight)) = False Then lastKeys.Add (CustomKeys.BindedKey(eKeyType.mKeyRight)) ' Agrega la tecla al arraylist
-            Else
-                If lastKeys.itemExist(CustomKeys.BindedKey(eKeyType.mKeyRight)) Then lastKeys.Remove (CustomKeys.BindedKey(eKeyType.mKeyRight)) ' Remueve la tecla que teniamos presionada
-            End If
+            Call AddMovementToKeysMovementPressedQueue
+
             'Move Up
-            If lastKeys.Count() = 38 Then
-                Debug.Print ("[" + CStr(lastKeys.item(1)) + "," + CStr(lastKeys.item(2)) + "," + CStr(lastKeys.item(3)) + "," + CStr(lastKeys.item(4)) + "]")
+            If keysMovementPressedQueue.GetLastItem() = CustomKeys.BindedKey(eKeyType.mKeyUp) Then
                 Call Map_MoveTo(NORTH)
                 Call Char_UserPos
                 Exit Sub
             End If
+            
             'Move Right
-            If lastKeys.Count = 39 Then
-                Debug.Print ("[" + CStr(lastKeys.item(1)) + "," + CStr(lastKeys.item(2)) + "," + CStr(lastKeys.item(3)) + "," + CStr(lastKeys.item(4)) + "]")
+            If keysMovementPressedQueue.GetLastItem() = CustomKeys.BindedKey(eKeyType.mKeyRight) Then
                 Call Map_MoveTo(EAST)
                 Call Char_UserPos
                 Exit Sub
             End If
+        
             'Move down
-            If lastKeys.Count = 40 Then
-                Debug.Print ("[" + CStr(lastKeys.item(1)) + "," + CStr(lastKeys.item(2)) + "," + CStr(lastKeys.item(3)) + "," + CStr(lastKeys.item(4)) + "]")
+            If keysMovementPressedQueue.GetLastItem() = CustomKeys.BindedKey(eKeyType.mKeyDown) Then
                 Call Map_MoveTo(SOUTH)
                 Call Char_UserPos
                 Exit Sub
             End If
+        
             'Move left
-            If lastKeys.Count = 37 Then
-                Debug.Print ("[" + CStr(lastKeys.item(1)) + "," + CStr(lastKeys.item(2)) + "," + CStr(lastKeys.item(3)) + "," + CStr(lastKeys.item(4)) + "]")
+            If keysMovementPressedQueue.GetLastItem() = CustomKeys.BindedKey(eKeyType.mKeyLeft) Then
                 Call Map_MoveTo(WEST)
                 Call Char_UserPos
                 Exit Sub
             End If
+           
             ' We haven't moved - Update 3D sounds!
             Call Audio.MoveListener(UserPos.X, UserPos.Y)
         Else
@@ -405,10 +376,7 @@ Private Sub CheckKeys()
 
             Call Char_UserPos
         End If
-    Else
 
-        Call frmMain.ActualizarMiniMapa   'integrado por ReyarB
-        
     End If
 End Sub
 
@@ -552,6 +520,9 @@ Sub SwitchMap(ByVal Map As Integer)
     renderText = nameMap
     renderFont = 2
     colorRender = 240
+
+    'Aqui ponemos el nombre del mapa en el label del frmMain
+    frmMain.lblMapName.Caption = nameMap
     
 End Sub
 
@@ -608,20 +579,6 @@ Function FileExist(ByVal File As String, ByVal FileType As VbFileAttribute) As B
     FileExist = (Dir$(File, FileType) <> "")
 End Function
 
-Public Function IsIp(ByVal Ip As String) As Boolean
-    Dim i As Long
-    Dim Upper_serversLst As Long
-        Upper_serversLst = UBound(ServersLst)
-    
-    For i = 1 To Upper_serversLst
-        If ServersLst(i).Ip = Ip Then
-            IsIp = True
-            Exit Function
-        End If
-    Next i
-    
-End Function
-
 Private Function GetCountryFromIp(ByVal Ip As String) As String
 '********************************
 'Author: Recox
@@ -648,103 +605,6 @@ On Error Resume Next
     GetCountryFromIp = JsonObject.item("country")
     
     Set Inet = Nothing
-End Function
-
-Public Sub CargarServidores()
-'********************************
-'Author: Unknown
-'Last Modification: 21/12/2019
-'Last Modified by: Recox
-'Added Instruction "CloseClient" before End so the mutex is cleared (Rapsodius)
-'Added IP Api to get the country of the IP. (Recox)
-'Get ping from server (Recox)
-'********************************
-On Error GoTo errorH
-    Dim File As String
-    Dim Quantity As Integer
-    Dim i As Integer
-    Dim CountryCode As String
-    Dim IpApiEnabled As Boolean
-    Dim DoPingsEnabled As Boolean
-    
-    File = Game.path(INIT) & "sinfo.dat"
-    Quantity = Val(GetVar(File, "INIT", "Cant"))
-    IpApiEnabled = GetVar(Game.path(INIT) & "Config.ini", "Parameters", "IpApiEnabled")
-    DoPingsEnabled = GetVar(Game.path(INIT) & "Config.ini", "Parameters", "DoPingsEnabled")
-    
-    frmConnect.lstServers.Clear
-    
-    ReDim ServersLst(1 To Quantity) As tServerInfo
-    For i = 1 To Quantity
-        Dim CurrentIp As String
-        CurrentIp = Trim$(GetVar(File, "S" & i, "Ip"))
-        
-        If IpApiEnabled Then
-
-           'If is not numeric do a url transformation
-            If CheckIfIpIsNumeric(CurrentIp) = False Then
-                CurrentIp = GetIPFromHostName(CurrentIp)
-            End If
-
-            CountryCode = GetCountryCode(CurrentIp)
-            ServersLst(i).Desc = CountryCode & " - " & GetVar(File, "S" & i, "Desc")
-        Else
-            ServersLst(i).Desc = GetVar(File, "S" & i, "Desc")
-        End If
-        
-        ServersLst(i).Ip = GetVar(File, "S" & i, "Ip")
-        ServersLst(i).Puerto = CInt(GetVar(File, "S" & i, "PJ"))
-        ServersLst(i).Mundo = GetVar(File, "S" & i, "MUNDO")
-        'ServersLst(i).Ping = PingAddress(CurrentIp, "SomeRandomText")
-        'ServersLst(i).Country = CountryCode
-
-        'We should delete this validations and append text to the desc when we start working in something more suitable
-        'in the UI to show the Pings, Country, Desc, etc.
-        'All this functions are in the CODIGO/modPing.bas
-        If DoPingsEnabled Then
-            ServersLst(i).Desc = PingAddress(CurrentIp, "SomeRandomText") & " " & ServersLst(i).Desc
-        End If
-
-        frmConnect.lstServers.AddItem (ServersLst(i).Desc)
-    Next i
-    
-    If CurServer = 0 Then CurServer = 1
-
-Exit Sub
-
-errorH:
-    Call MsgBox("Error cargando los servidores, actualicelos de la web", vbCritical + vbOKOnly, "Argentum Online")
-    
-    'Call CloseClient
-End Sub
-
-
-Private Function CheckIfIpIsNumeric(CurrentIp As String) As String
-    If IsNumeric(mid$(CurrentIp, 1, 1)) Then
-        CheckIfIpIsNumeric = True
-    Else
-        CheckIfIpIsNumeric = False
-    End If
-End Function
-
-Private Function GetCountryCode(CurrentIp As String) As String
-    Dim CountryCode As String
-    CountryCode = GetCountryFromIp(CurrentIp)
-
-    If LenB(CountryCode) > 0 Then
-        GetCountryCode = CountryCode
-    Else
-        GetCountryCode = "??"
-    End If
-
-End Function
-
-Public Function CurServerIp() As String
-    CurServerIp = frmConnect.IPTxt
-End Function
-
-Public Function CurServerPort() As Integer
-    CurServerPort = Val(frmConnect.PortTxt)
 End Function
 
 Sub Main()
@@ -788,16 +648,12 @@ Sub Main()
     Call LoadInitialConfig
     
     If GetVar(Game.path(INIT) & "Config.ini", "Parameters", "TestMode") <> 1 Then
-        With frmPres
-            .Picture = LoadPicture(Game.path(Interfaces) & "ImagenPresentacion.jpg")
-            .Show vbModal    'Es modal, asi que se detiene la ejecucionn de Main hasta que se desaparece
-        End With
+        frmPres.Show vbModal    'Es modal, asi que se detiene la ejecucionn de Main hasta que se desaparece
     End If
 
     frmConnect.Visible = True
     
     'Inicializacion de variables globales
-    PrimeraVez = True
     prgRun = True
     pausa = False
     
@@ -808,8 +664,9 @@ Sub Main()
     Set DialogosClanes = New clsGuildDlg
     DialogosClanes.Activo = ClientSetup.bGldMsgConsole
     DialogosClanes.CantidadDialogos = ClientSetup.bCantMsgs
-    Dialogos.Font = frmMain.Font
     DialogosClanes.Font = frmMain.Font
+ 
+    Dialogos.Font = frmMain.Font
     
     lFrameTimer = GetTickCount
     
@@ -850,11 +707,24 @@ End Function
 
 Private Sub LoadInitialConfig()
 '***************************************************
-'Author: ZaMa
-'Last Modification: 15/03/2011
+'Author: Recox
+'Last Modification: 30/10/2019
 '15/03/2011: ZaMa - Initialize classes lazy way.
+'30/10/2019: Recox - Initialize Mouse icons
 '***************************************************
+    ' Mouse Pointer and Mouse Icon (Loaded before opening any form with buttons in it)
+    Set picMouseIcon = LoadPicture(Game.path(Graficos) & "MouseIcons\Baston.ico")
 
+    ' Mouse Icon to use in the rest of the game this one is animated
+    ' We load it in frmMain but for some reason is loaded in the rest of the game
+    ' Better for us :)
+    Dim CursorAniDir As String
+    Dim Cursor As Long
+    CursorAniDir = Game.path(Graficos) & "MouseIcons\General.ani"
+    hSwapCursor = SetClassLong(frmMain.hWnd, GLC_HCURSOR, LoadCursorFromFile(CursorAniDir))
+    hSwapCursor = SetClassLong(frmMain.MainViewPic.hWnd, GLC_HCURSOR, LoadCursorFromFile(CursorAniDir))
+    hSwapCursor = SetClassLong(frmMain.hlst.hWnd, GLC_HCURSOR, LoadCursorFromFile(CursorAniDir))
+   
     frmCargando.Show
     frmCargando.Refresh
 
@@ -871,7 +741,6 @@ Private Sub LoadInitialConfig()
                             
     Set Dialogos = New clsDialogs
     Set Audio = New clsAudio
-    Set lastKeys = New clsArrayList
     Set Inventario = New clsGraphicalInventory
     Set CustomKeys = New clsCustomKeys
     Set CustomMessages = New clsCustomMessages
@@ -880,7 +749,11 @@ Private Sub LoadInitialConfig()
     Set MainTimer = New clsTimer
     Set clsForos = New clsForum
     Set frmMain.Client = New clsSocket
-    Call lastKeys.Initialize(1, 4)
+
+    'Esto es para el movimiento suave de pjs, para que el pj termine de hacer el movimiento antes de empezar otro
+    Set keysMovementPressedQueue = New clsArrayList
+    Call keysMovementPressedQueue.Initialize(1, 4)
+
     Call AddtoRichTextBox(frmCargando.status, _
                             "   " & JsonLanguage.item("HECHO").item("TEXTO"), _
                             JsonLanguage.item("HECHO").item("COLOR").item(1), _
@@ -898,13 +771,17 @@ Private Sub LoadInitialConfig()
                             True, False, True, rtfCenter)
                             
     'Inicializamos el sonido
-    Call Audio.Initialize(DirectX, frmMain.hWnd, Game.path(Sounds), Game.path(Musica))
+    Call Audio.Initialize(DirectX, frmMain.hWnd, Game.path(Sounds), Game.path(Musica), Game.path(MusicaMp3))
 
     'Enable / Disable audio
     Audio.MusicActivated = ClientSetup.bMusic
     Audio.SoundActivated = ClientSetup.bSound
     Audio.SoundEffectsActivated = ClientSetup.bSoundEffects
-    Call Audio.PlayMIDI("6.mid")
+    Audio.MusicVolume = ClientSetup.MusicVolume
+    Audio.SoundVolume = ClientSetup.SoundVolume
+
+    'Iniciamos cancion principal del juego turururuuuuuu
+    Call Audio.PlayBackgroundMusic("6", MusicTypes.Mp3)
     
     Call AddtoRichTextBox(frmCargando.status, _
                             "   " & JsonLanguage.item("HECHO").item("TEXTO"), _
@@ -928,10 +805,6 @@ Private Sub LoadInitialConfig()
     Call Protocol.InitFonts
  
     UserMap = 1
-    
-    ' Mouse Pointer (Loaded before opening any form with buttons in it)
-    If FileExist(Game.path(Extras) & "Hand.ico", vbArchive) Then _
-        Set picMouseIcon = LoadPicture(Game.path(Extras) & "Hand.ico")
     
     Call AddtoRichTextBox(frmCargando.status, _
                             "   " & JsonLanguage.item("HECHO").item("TEXTO"), _
@@ -960,7 +833,7 @@ Private Sub LoadInitialConfig()
         Call CloseClient
     End If
     
-    Call Engine_DirectX8_Aditional_Init
+    Call mDx8_Engine.Engine_DirectX8_Aditional_Init
 
     Call AddtoRichTextBox(frmCargando.status, _
                             "   " & JsonLanguage.item("HECHO").item("TEXTO"), _
@@ -1004,7 +877,8 @@ Private Sub LoadInitialConfig()
                             
     '###################
     ' PETICIONES API
-    Call GetPostsFromReddit
+    Call GetPostsFromReddit '>>>>
+    'Que lento que es ese sub XD
 
     Unload frmCargando
     
@@ -1122,20 +996,6 @@ Function HayAgua(ByVal X As Integer, ByVal Y As Integer) As Boolean
                 
 End Function
 
-Public Sub ShowSendTxt()
-    If Not frmCantidad.Visible Then
-        frmMain.SendTxt.Visible = True
-        frmMain.SendTxt.SetFocus
-    End If
-End Sub
-
-Public Sub ShowSendCMSGTxt()
-    If Not frmCantidad.Visible Then
-        frmMain.SendCMSTXT.Visible = True
-        frmMain.SendCMSTXT.SetFocus
-    End If
-End Sub
-
 ''
 ' Checks the command line parameters, if you are running Ao with /nores command
 '
@@ -1182,34 +1042,19 @@ Private Sub InicializarNombres()
     ListaRazas(eRaza.Gnomo) = JsonLanguage.item("RAZAS").item("GNOMO")
     ListaRazas(eRaza.Enano) = JsonLanguage.item("RAZAS").item("ENANO")
 
-
-    ' No uso las traducciones ya que muchas cosas estan hardcodeadas en castellano
-    ' ListaClases(eClass.Mage) = JsonLanguage.Item("CLASES").Item("MAGO")
-    ' ListaClases(eClass.Cleric) = JsonLanguage.Item("CLASES").Item("CLERIGO")
-    ' ListaClases(eClass.Warrior) = JsonLanguage.Item("CLASES").Item("GUERRERO")
-    ' ListaClases(eClass.Assasin) = JsonLanguage.Item("CLASES").Item("ASESINO")
-    ' ListaClases(eClass.Thief) = JsonLanguage.Item("CLASES").Item("LADRON")
-    ' ListaClases(eClass.Bard) = JsonLanguage.Item("CLASES").Item("BARDO")
-    ' ListaClases(eClass.Druid) = JsonLanguage.Item("CLASES").Item("DRUIDA")
-    ' ListaClases(eClass.Bandit) = JsonLanguage.Item("CLASES").Item("BANDIDO")
-    ' ListaClases(eClass.Paladin) = JsonLanguage.Item("CLASES").Item("PALADIN")
-    ' ListaClases(eClass.Hunter) = JsonLanguage.Item("CLASES").Item("CAZADOR")
-    ' ListaClases(eClass.Worker) = JsonLanguage.Item("CLASES").Item("TRABAJADOR")
-    ' ListaClases(eClass.Pirat) = JsonLanguage.Item("CLASES").Item("PIRATA")
-
-    ListaClases(eClass.Mage) = "Mago"
-    ListaClases(eClass.Cleric) = "Clerigo"
-    ListaClases(eClass.Warrior) = "Guerrero"
-    ListaClases(eClass.Assasin) = "Asesino"
-    ListaClases(eClass.Thief) = "Ladron"
-    ListaClases(eClass.Bard) = "Bardo"
-    ListaClases(eClass.Druid) = "Druida"
-    ListaClases(eClass.Bandit) = "Bandido"
-    ListaClases(eClass.Paladin) = "Paladin"
-    ListaClases(eClass.Hunter) = "Cazador"
-    ListaClases(eClass.Worker) = "Trabajador"
-    ListaClases(eClass.Pirat) = "Pirata"
-    
+    ListaClases(eClass.Mage) = JsonLanguage.item("CLASES").item("MAGO")
+    ListaClases(eClass.Cleric) = JsonLanguage.item("CLASES").item("CLERIGO")
+    ListaClases(eClass.Warrior) = JsonLanguage.item("CLASES").item("GUERRERO")
+    ListaClases(eClass.Assasin) = JsonLanguage.item("CLASES").item("ASESINO")
+    ListaClases(eClass.Thief) = JsonLanguage.item("CLASES").item("LADRON")
+    ListaClases(eClass.Bard) = JsonLanguage.item("CLASES").item("BARDO")
+    ListaClases(eClass.Druid) = JsonLanguage.item("CLASES").item("DRUIDA")
+    ListaClases(eClass.Bandit) = JsonLanguage.item("CLASES").item("BANDIDO")
+    ListaClases(eClass.Paladin) = JsonLanguage.item("CLASES").item("PALADIN")
+    ListaClases(eClass.Hunter) = JsonLanguage.item("CLASES").item("CAZADOR")
+    ListaClases(eClass.Worker) = JsonLanguage.item("CLASES").item("TRABAJADOR")
+    ListaClases(eClass.Pirate) = JsonLanguage.item("CLASES").item("PIRATA")
+   
     SkillsNames(eSkill.Magia) = JsonLanguage.item("HABILIDADES").item("MAGIA").item("TEXTO")
     SkillsNames(eSkill.Robar) = JsonLanguage.item("HABILIDADES").item("ROBAR").item("TEXTO")
     SkillsNames(eSkill.Tacticas) = JsonLanguage.item("HABILIDADES").item("EVASION_EN_COMBATE").item("TEXTO")
@@ -1267,6 +1112,16 @@ Public Sub CloseClient()
     
     EngineRun = False
     
+    'WyroX:
+    'Guardamos antes de cerrar porque algunas configuraciones
+    'no se guardan desde el menu opciones (Por ej: M=Musica)
+    'Fix: intentaba guardar cuando el juego cerraba por un error,
+    'antes de cargar los recursos. Me aprovecho de prgRun
+    'para saber si ya fueron cargados
+    If prgRun Then
+        Call Game.GuardarConfiguracion
+    End If
+
     'Cerramos Sockets/Winsocks/WindowsAPI
     frmMain.Client.CloseSck
     
@@ -1340,14 +1195,15 @@ EsperandoLevel = False
 End Sub
 
 Public Function getStrenghtColor() As Long
-Dim m As Long
-m = 255 / MAXATRIBUTOS
-getStrenghtColor = RGB(255 - (m * UserFuerza), (m * UserFuerza), 0)
+    Dim m As Long
+    m = 255 / MAXATRIBUTOS
+    getStrenghtColor = RGB(255 - (m * UserFuerza), (m * UserFuerza), 0)
 End Function
+    
 Public Function getDexterityColor() As Long
-Dim m As Long
-m = 255 / MAXATRIBUTOS
-getDexterityColor = RGB(255, m * UserAgilidad, 0)
+    Dim m As Long
+    m = 255 / MAXATRIBUTOS
+    getDexterityColor = RGB(255, m * UserAgilidad, 0)
 End Function
 
 Public Function getCharIndexByName(ByVal name As String) As Integer
@@ -1420,7 +1276,6 @@ Public Sub ResetAllInfo()
     On Local Error GoTo 0
     
     ' Return to connection screen
-    frmConnect.MousePointer = vbNormal
     If Not frmCrearPersonaje.Visible Then frmConnect.Visible = True
     frmMain.Visible = False
     
@@ -1468,7 +1323,10 @@ Public Sub ResetAllInfo()
     UserEmail = vbNullString
     SkillPoints = 0
     Alocados = 0
-    
+    UserEquitando = 0
+
+    Call SetSpeedUsuario
+
     ' Reset skills
     For i = 1 To NUMSKILLS
         UserSkills(i) = 0
@@ -1482,8 +1340,8 @@ Public Sub ResetAllInfo()
     ' Clear inventory slots
     Inventario.ClearAllSlots
 
-    ' Connection screen midi
-    Call Audio.PlayMIDI("2.mid")
+    ' Connection screen mp3
+    Call Audio.PlayBackgroundMusic("2", MusicTypes.Mp3)
 
 End Sub
 
@@ -1508,81 +1366,167 @@ Dim i As Long
     Next i
 End Function
 
-Sub DownloadServersFile(myURL As String)
-'**********************************************************
-'Downloads the sinfo.dat file from a given url
-'Last change: 01/11/2018
-'Implemented by Cucsifae
-'Check content of strData to avoid clean the file sinfo.ini if there is no response from Github by Recox
-'**********************************************************
-On Error Resume Next
-    Dim strData As String
-    Dim f As Integer
+' USO: If ArrayInitialized(Not ArrayName) Then ...
+Public Function ArrayInitialized(ByVal TheArray As Long) As Boolean
+'***************************************************
+'Author: Jopi
+'Last Modify Date: 03/01/2020
+'Chequea que se haya inicializado el Array.
+'***************************************************
     
-    Set Inet = New clsInet
-    
-    strData = Inet.OpenRequest(myURL, "GET")
-    strData = Inet.Execute
-    strData = Inet.GetResponseAsString
-    
-    f = FreeFile
-    
-    If LenB(strData) <> 0 Then
-        Open Game.path(INIT) & "sinfo.dat" For Output As #f
-            Print #f, strData
-        Close #f
-    End If
-    
-    Exit Sub
-End Sub
+    ArrayInitialized = Not (TheArray = -1&)
 
-Function EaseOutCubic(Time As Double)
-    Time = Time - 1
-    EaseOutCubic = Time * Time * Time + 1
 End Function
 
 Public Sub GetPostsFromReddit()
-On Error Resume Next
-    If UBound(Posts) = 0 Then
-        Set Inet = New clsInet
-        
-        Dim ResponseReddit As String
-        Dim JsonObject As Object
-        Dim Endpoint As String
-        
-        Endpoint = GetVar(Game.path(INIT) & "Config.ini", "Parameters", "SubRedditEndpoint")
     
-        ResponseReddit = Inet.OpenRequest(Endpoint, "GET")
-        ResponseReddit = Inet.Execute
-        ResponseReddit = Inet.GetResponseAsString
+    On Error GoTo ErrorHandler
+    
+    With frmConnect.lstRedditPosts
         
+        'Si Posts() NO esta inicializado...
+        If Not ArrayInitialized(Not Posts) Then
+    
+            Set Inet = New clsInet
         
-        Set JsonObject = JSON.parse(ResponseReddit)
+            Dim ResponseReddit As String
+            Dim JsonObject     As Object
+            Dim Endpoint       As String
         
-        Dim qtyPostsOnReddit As Integer: qtyPostsOnReddit = JsonObject.item("data").item("children").Count
+            Endpoint = GetVar(Game.path(INIT) & "Config.ini", "Parameters", "SubRedditEndpoint")
+    
+            ResponseReddit = Inet.OpenRequest(Endpoint, "GET")
+            ResponseReddit = Inet.Execute
+            ResponseReddit = Inet.GetResponseAsString
         
-        ReDim Preserve Posts(qtyPostsOnReddit)
+            Set JsonObject = JSON.parse(ResponseReddit)
         
-        'Clear lstRedditPosts before populate it again to prevent repeated values.
-        frmConnect.lstRedditPosts.Clear
-        'Long funciona mas rapido en los loops que Integer
-        Dim i As Long
-        i = 1
-        Do While i <= qtyPostsOnReddit
-            Posts(i).Title = JsonObject.item("data").item("children").item(i).item("data").item("title")
-            Posts(i).URL = JsonObject.item("data").item("children").item(i).item("data").item("url")
+            Dim qtyPostsOnReddit As Integer: qtyPostsOnReddit = JsonObject.item("data").item("children").Count
+        
+            ReDim Preserve Posts(qtyPostsOnReddit)
+        
+            'Clear lstRedditPosts before populate it again to prevent repeated values.
+            Call .Clear
+        
+            'Long funciona mas rapido en los loops que Integer
+            Dim i As Long: i = 1
+
+            Do While i <= qtyPostsOnReddit
+
+                With Posts(i)
+                    .Title = JsonObject.item("data").item("children").item(i).item("data").item("title")
+                    .URL = JsonObject.item("data").item("children").item(i).item("data").item("url")
+                End With
             
-            frmConnect.lstRedditPosts.AddItem JsonObject.item("data").item("children").item(i).item("data").item("title")
+                Call .AddItem(JsonObject.item("data").item("children").item(i).item("data").item("title"))
             
-            i = i + 1
-        Loop
+                i = i + 1
+            Loop
         
-        Set Inet = Nothing
-    Else
-        Dim ia As Long
-        For ia = 1 To UBound(Posts)
-            frmConnect.lstRedditPosts.AddItem Posts(ia).Title
-        Next ia
+            Set Inet = Nothing
+        
+        Else 'Si lo esta, agregamos los valores existentes.
+    
+            Dim ia As Long
+            For ia = 1 To UBound(Posts)
+                Call .AddItem(Posts(ia).Title)
+            Next ia
+
+        End If
+    
+    End With
+
+ErrorHandler:
+
+    If Err.number Then
+        Call LogError(Err.number, Err.Description, "Mod_General.GetPostsFromReddit")
     End If
     
 End Sub
+
+Function ImgRequest(ByVal sFile As String) As String
+    '***************************************************
+    'Author: RecoX
+    'Last Modify Date: 17/10/2019
+    'Funcion para cargar imagenes de forma segura, ya que si no existe el programa no explota, extraido de gs-ao
+    '***************************************************
+    Dim RespondMsgBox As Byte
+
+    If LenB(Dir(sFile, vbArchive)) = 0 Then
+        RespondMsgBox = MsgBox("ERROR: Imagen no encontrada..." & vbCrLf & sFile, vbCritical + vbRetryCancel)
+
+        If RespondMsgBox = vbRetry Then
+            sFile = ImgRequest(sFile)
+        Else
+            Call MsgBox("ADVERTENCIA: El juego seguira funcionando sin alguna imagen!", vbInformation + vbOKOnly)
+            sFile = Game.path(Interfaces) & "blank.bmp"
+        End If
+        
+    End If
+    
+    ImgRequest = sFile
+    
+End Function
+
+Public Sub LoadAOCustomControlsPictures(ByRef tForm As Form)
+    '***************************************************
+    'Author: RecoX
+    'Last Modify Date: 17/10/2019
+    'Cargamos las imagenes de los uAOControls en los formularios.
+    '***************************************************
+    Dim DirButtons As String
+        DirButtons = Game.path(Graficos) & "\Botones\"
+
+    Dim cControl As Control
+
+    For Each cControl In tForm.Controls
+
+        If TypeOf cControl Is uAOButton Then
+            cControl.PictureEsquina = LoadPicture(ImgRequest(DirButtons & uAOButton_bEsquina))
+            cControl.PictureFondo = LoadPicture(ImgRequest(DirButtons & uAOButton_bFondo))
+            cControl.PictureHorizontal = LoadPicture(ImgRequest(DirButtons & uAOButton_bHorizontal))
+            cControl.PictureVertical = LoadPicture(ImgRequest(DirButtons & uAOButton_bVertical))
+        ElseIf TypeOf cControl Is uAOCheckbox Then
+            cControl.Picture = LoadPicture(ImgRequest(DirButtons & uAOButton_cCheckboxSmall))
+        End If
+        
+    Next
+    
+End Sub
+
+Public Sub SetSpeedUsuario()
+
+    If UserEquitando Then
+        Engine_BaseSpeed = 0.024
+    Else
+        Engine_BaseSpeed = 0.018
+    End If
+End Sub
+
+Public Function CurServerIp() As String
+    CurServerIp = frmConnect.IPTxt
+End Function
+
+Public Function CurServerPort() As Integer
+    CurServerPort = Val(frmConnect.PortTxt)
+End Function
+
+Public Function CheckIfIpIsNumeric(CurrentIp As String) As String
+    If IsNumeric(mid$(CurrentIp, 1, 1)) Then
+        CheckIfIpIsNumeric = True
+    Else
+        CheckIfIpIsNumeric = False
+    End If
+End Function
+
+Public Function GetCountryCode(CurrentIp As String) As String
+    Dim CountryCode As String
+    CountryCode = GetCountryFromIp(CurrentIp)
+
+    If LenB(CountryCode) > 0 Then
+        GetCountryCode = CountryCode
+    Else
+        GetCountryCode = "??"
+    End If
+
+End Function

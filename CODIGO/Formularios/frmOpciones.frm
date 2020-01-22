@@ -507,7 +507,15 @@ Private Sub Form_Load()
     Set clsFormulario = New clsFormMovementManager
     clsFormulario.Initialize Me
     
-    Me.Picture = LoadPicture(Game.path(Interfaces) & "VentanaOpciones.jpg")
+    ' TODO: Traducir los textos de las imagenes via labels en visual basic, para que en el futuro si se quiere se pueda traducir a mas idiomas
+    ' No ando con mas ganas/tiempo para hacer eso asi que se traducen las imagenes asi tenemos el juego en ingles.
+    ' Tambien usar los controles uAObuttons para los botones, usar de ejemplo frmCambiaMotd.frm
+    If Language = "spanish" Then
+      Me.Picture = LoadPicture(Game.path(Interfaces) & "VentanaOpciones_spanish.jpg")
+    Else
+      Me.Picture = LoadPicture(Game.path(Interfaces) & "VentanaOpciones_english.jpg")
+    End If
+
     LoadButtons
     LoadSkinsInComboBox
     LoadLenguajesInComboBox
@@ -605,24 +613,16 @@ Private Sub LoadUserConfig()
     ' Load music config
     bMusicActivated = Audio.MusicActivated
     Slider1(0).Enabled = bMusicActivated
+    Slider1(0).Value = Audio.MusicVolume
     
-    If bMusicActivated Then
-        imgChkMusica.Picture = picCheckBox
-        
-        Slider1(0).Value = Audio.MusicVolume
-    End If
-    
+    If bMusicActivated Then imgChkMusica.Picture = picCheckBox
     
     ' Load Sound config
     bSoundActivated = Audio.SoundActivated
     Slider1(1).Enabled = bSoundActivated
+    Slider1(1).Value = Audio.SoundVolume
     
-    If bSoundActivated Then
-        imgChkSonidos.Picture = picCheckBox
-        
-        Slider1(1).Value = Audio.SoundVolume
-    End If
-    
+    If bSoundActivated Then imgChkSonidos.Picture = picCheckBox
     
     ' Load Sound Effects config
     bSoundEffectsActivated = Audio.SoundEffectsActivated
