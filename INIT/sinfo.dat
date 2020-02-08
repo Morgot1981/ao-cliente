@@ -1,5 +1,5 @@
 [INIT]
-Cant=4
+Cant=5
 
 [S1]
 Desc=Rol - Alkon 0.13.X
@@ -24,6 +24,12 @@ Desc=Servidor Local | Modo:BattleServer
 IP=localhost
 PJ=7666
 Mundo=BattleServer
+
+[S5]
+Desc=LegendarioAo | Modo:Alkon 0.13.X
+IP=213.194.180.26
+PJ=7666
+Mundo=Alkon
 
 
 
